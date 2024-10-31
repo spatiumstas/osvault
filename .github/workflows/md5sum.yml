@@ -1,0 +1,36 @@
+name: Generate MD5 Checksums per Folder
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  generate-md5:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Generate MD5 checksum files
+        run: |
+          find . -type d | while read -r dir; do
+            files=$(find "$dir" -maxdepth 1 -type f ! -name 'md5sum')
+            if [ -n "$files" ]; then
+              > "$dir/md5sum"
+              echo "$files" | while read -r file; do
+                filename=$(basename "$file")
+                md5sum "$file" | awk -v name="$filename" '{print $1, name}' >> "$dir/md5sum"
+              done
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add **/md5sum
+          git commit -m "Update md5sum files" || echo "No changes to commit"
+          git push origin HEAD:main
+        continue-on-error: true
